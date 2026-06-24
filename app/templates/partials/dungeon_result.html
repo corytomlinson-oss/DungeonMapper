@@ -1,0 +1,126 @@
+{% set area_labels = {
+  'dungeon': '🏰 Dungeon', 'cave': '🦇 Cave', 'crypt': '💀 Crypt',
+  'sewer': '🐀 Sewer', 'ruins': '🗿 Ruins'
+} %}
+{% set size_labels = {'small':'Small (40×30)','medium':'Medium (70×50)','large':'Large (100×70)','epic':'Epic (150×100)'} %}
+
+<!-- Info bar -->
+<div class="bg-white rounded-2xl shadow px-5 py-4 mb-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h3 class="text-lg font-bold text-slate-800">
+        {{ area_labels.get(dungeon.area_type, dungeon.area_type|title) }}
+        {% if dungeon.saved_name is defined and dungeon.saved_name %}
+          — <span class="text-dm-600">{{ dungeon.saved_name }}</span>
+        {% endif %}
+      </h3>
+      <p class="text-sm text-slate-500">
+        {{ size_labels.get(dungeon.size, dungeon.size|title) }} ·
+        {{ dungeon.num_levels }} level{% if dungeon.num_levels != 1 %}s{% endif %} ·
+        Seed <span class="font-mono">{{ dungeon.seed }}</span>
+      </p>
+    </div>
+    <div class="flex gap-1 flex-wrap">
+      {% for color, icon, label in [
+        ('#2a7a3a','⊙','Entrance'),('#d4a017','▲','Stairs Up'),('#c07010','▼','Stairs Down'),
+        ('#b03030','⚔','Spawn'),('#c8a020','★','Treasure'),('#6b4c1e','','Door')
+      ] %}
+      <span class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+        <span style="color:{{ color }}" class="font-bold">{{ icon if icon else '▬' }}</span>{{ label }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Canvas + controls -->
+<div class="bg-white rounded-2xl shadow p-4"
+     x-data="dungeonMap({{ dungeon | tojson }})"
+     x-init="init()">
+
+  <!-- Level tabs (only when multi-level) -->
+  {% if dungeon.num_levels > 1 %}
+  <div class="flex gap-2 mb-3 flex-wrap">
+    {% for i in range(dungeon.num_levels) %}
+    <button @click="currentLevel = {{ i }}"
+            :class="currentLevel === {{ i }}
+              ? 'bg-slate-800 text-white'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+            class="px-3 py-1 rounded-lg text-sm font-semibold transition-colors">
+      Level {{ i + 1 }}{% if i == 0 %} (entrance){% elif i == dungeon.num_levels - 1 %} (boss){% endif %}
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Canvas -->
+  <div x-ref="wrap" class="overflow-auto rounded-lg bg-slate-900 border border-slate-700 cursor-crosshair">
+    <canvas x-ref="canvas"
+            @pointermove="onCanvasMove($event)"
+            @pointerleave="onCanvasLeave()"
+            class="block">
+    </canvas>
+  </div>
+
+  <!-- Hover info -->
+  <div class="mt-2 h-5 text-xs text-slate-400">
+    <span x-show="hoveredSquare" x-cloak>
+      Square (<span x-text="hoveredSquare?.x"></span>, <span x-text="hoveredSquare?.y"></span>)
+      — <span x-text="tileName" class="font-semibold text-slate-600"></span>
+    </span>
+    <span x-show="!hoveredSquare" class="text-slate-300">Hover over the map · Each □ = 5 ft</span>
+  </div>
+
+  <!-- Level stats -->
+  <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+    <template x-if="levelCounts">
+      <template x-for="(val, key) in levelCounts" :key="key">
+        <span x-show="val > 0">
+          <span class="font-semibold text-slate-700" x-text="key"></span>:
+          <span x-text="val"></span>
+        </span>
+      </template>
+    </template>
+  </div>
+
+  <!-- Save form -->
+  <div class="mt-4 pt-4 border-t border-slate-100" x-data="{ open: false }">
+    <button @click="open = !open"
+            class="flex items-center gap-2 text-sm font-semibold text-dm-600 hover:text-dm-800 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+      </svg>
+      Save this dungeon
+      <svg class="w-4 h-4 transition-transform" :class="open ? 'rotate-180' : ''"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+
+    <div x-show="open" x-cloak class="mt-3">
+      <form hx-post="/save"
+            hx-target="#save-result"
+            hx-swap="innerHTML"
+            class="flex flex-wrap gap-2 items-end">
+        <input type="hidden" name="area_type"  value="{{ dungeon.area_type }}">
+        <input type="hidden" name="size"        value="{{ dungeon.size }}">
+        <input type="hidden" name="num_levels"  value="{{ dungeon.num_levels }}">
+        <input type="hidden" name="seed"        value="{{ dungeon.seed }}">
+        <div class="flex-1 min-w-40">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Name (optional)</label>
+          <input type="text" name="name" placeholder="e.g. The Sunken Crypt"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-dm-500">
+        </div>
+        <button type="submit"
+          class="bg-dm-600 hover:bg-dm-700 text-white text-sm font-bold px-4 py-2
+                 rounded-lg transition-colors">
+          Save
+        </button>
+      </form>
+      <div id="save-result" class="mt-2 text-sm"></div>
+    </div>
+  </div>
+
+</div>

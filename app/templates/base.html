@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dungeon Mapper{% endblock %}</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dm: {
+              50:  '#f5f0e8', 100: '#ede3d0', 200: '#d9c9a0',
+              300: '#c4a968', 400: '#b08a35', 500: '#8b6914',
+              600: '#6e520f', 700: '#523d0b', 800: '#3a2b08',
+              900: '#241b05', 950: '#120d02',
+            }
+          }
+        }
+      },
+      safelist: [
+        'bg-dm-50','bg-dm-100','bg-dm-500','bg-dm-600','bg-dm-700',
+        'text-dm-300','text-dm-400','text-dm-500','text-dm-600','text-dm-700',
+        'border-dm-200','border-dm-300','border-dm-500',
+        'hover:bg-dm-700','hover:text-dm-300',
+        'bg-green-100','text-green-600','text-green-700','text-green-800',
+        'bg-red-100','text-red-500','text-red-600','text-red-700',
+        'bg-amber-100','text-amber-700','text-amber-800',
+        'bg-purple-100','text-purple-700','text-purple-800',
+        'bg-slate-100','bg-slate-50','bg-slate-800',
+        'text-slate-300','text-slate-400','text-slate-500',
+        'border-slate-200','border-slate-700',
+        'gap-2','gap-3','gap-4','gap-6',
+        'px-2','px-3','px-4','px-5',
+        'py-1','py-1.5','py-2','py-3',
+        'mb-1','mb-2','mb-3','mb-4',
+        'rounded','rounded-lg','rounded-xl','rounded-2xl','rounded-full',
+        'shadow','shadow-sm',
+        'flex-wrap','flex-1','shrink-0','overflow-auto','overflow-hidden',
+        'grid-cols-2','grid-cols-3','grid-cols-4',
+        'text-xs','text-sm','text-base','text-lg','text-xl',
+        'font-bold','font-semibold','font-medium',
+        'tracking-wider','tracking-widest','uppercase','italic',
+        'transition-colors','duration-200',
+      ]
+    }
+  </script>
+
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/static/canvas.js"></script>
+
+  <style>[x-cloak]{display:none!important}</style>
+  <script>
+    document.addEventListener('htmx:afterSettle', () => {
+      if (window.tailwind?.refresh) window.tailwind.refresh();
+    });
+  </script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+
+  <nav class="bg-slate-900 text-white shadow">
+    <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-lg font-bold text-dm-400 hover:text-dm-300 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+        Dungeon Mapper
+      </a>
+      <div class="flex items-center gap-5 text-sm">
+        <a href="/" class="hover:text-dm-300 transition-colors">Generate</a>
+        <a href="http://webpi.local" class="text-slate-400 hover:text-slate-200 transition-colors text-xs">← Hub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-screen-xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Dungeon Mapper — Generate{% endblock %}
+{% block content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+  <!-- ── Left panel: form + saved list ────────────────────────────────────── -->
+  <div class="lg:col-span-1 space-y-5">
+
+    <!-- Generator form -->
+    <div class="bg-white rounded-2xl shadow p-5">
+      <h2 class="text-xl font-bold text-slate-800 mb-4">Build Dungeon</h2>
+
+      <form hx-post="/generate"
+            hx-target="#dungeon-result"
+            hx-swap="innerHTML"
+            hx-indicator="#spinner"
+            class="space-y-4">
+
+        <!-- Area Type -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Area Type</label>
+          <div class="grid grid-cols-1 gap-1.5">
+            {% for val, label in [
+              ('dungeon','🏰 Dungeon'), ('cave','🦇 Cave'),
+              ('crypt','💀 Crypt'),    ('sewer','🐀 Sewer'),
+              ('ruins','🗿 Ruins')
+            ] %}
+            <label class="cursor-pointer">
+              <input type="radio" name="area_type" value="{{ val }}"
+                     class="sr-only peer" {% if val == 'dungeon' %}checked{% endif %}>
+              <div class="text-sm font-medium px-3 py-2 rounded-lg border-2 border-slate-200
+                          peer-checked:border-dm-500 peer-checked:bg-dm-50 peer-checked:text-dm-700
+                          hover:border-slate-300 transition-colors">
+                {{ label }}
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Size -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Size</label>
+          <div class="grid grid-cols-2 gap-1.5">
+            {% for val, label, sub in [
+              ('small','Small','40×30'),('medium','Medium','70×50'),
+              ('large','Large','100×70'),('epic','Epic','150×100')
+            ] %}
+            <label class="cursor-pointer">
+              <input type="radio" name="size" value="{{ val }}"
+                     class="sr-only peer" {% if val == 'medium' %}checked{% endif %}>
+              <div class="text-center text-sm font-medium px-2 py-2 rounded-lg border-2 border-slate-200
+                          peer-checked:border-dm-500 peer-checked:bg-dm-50 peer-checked:text-dm-700
+                          hover:border-slate-300 transition-colors">
+                {{ label }}<br><span class="text-xs font-normal text-slate-400">{{ sub }}</span>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Number of Levels -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">
+            Levels
+          </label>
+          <div class="flex items-center gap-3" x-data="{ val: 1 }">
+            <input type="range" name="num_levels" min="1" max="5" x-model="val"
+                   class="flex-1 accent-dm-600">
+            <span class="w-5 text-center font-bold text-slate-700" x-text="val"></span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Each level deeper has higher-CR encounters</p>
+        </div>
+
+        <!-- Seed (optional) -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">
+            Seed <span class="font-normal text-slate-400">(optional)</span>
+          </label>
+          <input type="text" name="seed" placeholder="Leave blank for random"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-dm-500">
+          <p class="text-xs text-slate-400 mt-1">Same seed + settings = same dungeon</p>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-dm-600 hover:bg-dm-700 text-white font-bold py-2.5
+                 rounded-xl transition-colors shadow">
+          🗺 Generate Dungeon
+        </button>
+      </form>
+
+      <div id="spinner" class="htmx-indicator mt-3 text-center text-sm text-slate-500">
+        Generating…
+      </div>
+    </div>
+
+    <!-- Saved dungeons -->
+    <div id="saved-list"
+         hx-get="/dungeons"
+         hx-trigger="load, dungeon-saved from:window"
+         hx-swap="innerHTML">
+      <div class="text-sm text-slate-400 text-center py-4">Loading saved dungeons…</div>
+    </div>
+
+  </div>
+
+  <!-- ── Right panel: canvas result ───────────────────────────────────────── -->
+  <div class="lg:col-span-3">
+    <div id="dungeon-result">
+      <div class="bg-white rounded-2xl shadow p-10 text-center text-slate-400">
+        <svg class="w-20 h-20 mx-auto mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+        <p class="text-lg font-medium">Choose your settings and generate a dungeon</p>
+        <p class="text-sm mt-1">Each square = 5 feet of movement</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
