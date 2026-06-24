@@ -272,15 +272,19 @@ DungeonMapper/
 
 ## Implementation Phases — Checklist
 
-### Phase 1 — Generator
-- [ ] BSP tree dungeon generation
-- [ ] Cellular automata cave generation
-- [ ] Multi-level support with linked stairs
-- [ ] Spawn point placement
-- [ ] Canvas rendering of generated dungeon
-- [ ] Save / load dungeons (SQLite)
-- [ ] Generator UI (form: type, size, levels, seed)
-- [ ] systemd service + Pi deployment
+### Phase 1 — Generator ✅ Complete
+- [x] BSP tree dungeon generation (dungeon, crypt, sewer, ruins)
+- [x] Cellular automata cave generation with largest-region connectivity pass
+- [x] Multi-level support (1–5 levels) with paired stair tiles
+- [x] Special room placement: entrance, boss room, treasure, spawn points
+- [x] 5-ft square grid lines on all floor tiles (□ = 5 ft)
+- [x] Scale bar drawn on canvas (shows 0–25 ft reference)
+- [x] Hover tooltip shows tile type and grid coordinates
+- [x] Canvas auto-scales tile size to fit container width (iPad + laptop)
+- [x] Save / load dungeons — stores seed + params only, regenerates deterministically
+- [x] Generator UI: area type, size, levels, optional seed
+- [x] Saved dungeon list with delete
+- [x] systemd service on Pi at port 8085
 
 ### Phase 2 — Live Play
 - [ ] WebSocket server with session management
