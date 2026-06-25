@@ -33,10 +33,12 @@
   </div>
 </div>
 
+<!-- Pass dungeon data safely outside HTML attribute (avoids double-quote conflict with JSON) -->
+<script>window.__dmDungeon = {{ dungeon | tojson }};</script>
+
 <!-- Canvas + controls -->
 <div class="bg-white rounded-2xl shadow p-4"
-     x-data="dungeonMap({{ dungeon | tojson }})"
-     x-init="init()">
+     x-data="dungeonMap(window.__dmDungeon)">
 
   <!-- Level tabs (only when multi-level) -->
   {% if dungeon.num_levels > 1 %}

@@ -26,9 +26,12 @@ function dungeonMap(data) {
 
     init() {
       this.$watch('currentLevel', () => this.render());
-      const ro = new ResizeObserver(() => this.render());
-      ro.observe(this.$refs.wrap);
-      this.$nextTick(() => this.render());
+      this.$nextTick(() => {
+        const ro = new ResizeObserver(() => this.render());
+        ro.observe(this.$refs.wrap);
+        // Small delay so the browser finishes layout after HTMX swap
+        setTimeout(() => this.render(), 50);
+      });
     },
 
     tileSize() {
