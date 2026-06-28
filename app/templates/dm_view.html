@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DM View — {{ session.code }}</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        dm: { 50:'#f5f0e8',100:'#ede3d0',200:'#d9c9a0',300:'#c4a968',
+              400:'#b08a35',500:'#8b6914',600:'#6e520f',700:'#523d0b',
+              800:'#3a2b08',900:'#241b05' }
+      }}},
+      safelist: ['bg-dm-600','bg-dm-700','text-dm-400','text-dm-300',
+                 'bg-green-500','bg-red-500','text-green-600','text-red-600',
+                 'bg-slate-700','bg-slate-800','ring-2','ring-white','opacity-50']
+    }
+  </script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/static/multiplayer.js?v=3"></script>
+  <style>[x-cloak]{display:none!important}</style>
+</head>
+
+<body class="bg-slate-900 text-white h-screen flex flex-col overflow-hidden"
+      x-data="dungeonSession()"
+      data-dungeon='{{ dungeon | tojson }}'
+      data-role="dm"
+      data-code="{{ session.code }}"
+      data-token="{{ session.dm_token }}">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-4 shrink-0">
+    <a href="/" class="text-dm-400 hover:text-dm-300 font-bold text-sm transition-colors">
+      ← Dungeon Mapper
+    </a>
+    <span class="text-slate-500">|</span>
+    <span class="font-bold text-dm-300 uppercase tracking-wider">DM View</span>
+    <span class="text-slate-400 text-sm">
+      {{ dungeon.area_type | title }} · {{ dungeon.size | title }} ·
+      {{ dungeon.num_levels }} level{% if dungeon.num_levels != 1 %}s{% endif %}
+    </span>
+    <span class="ml-auto flex items-center gap-2 text-xs">
+      <span :class="connected ? 'bg-green-500' : 'bg-red-500'"
+            class="w-2 h-2 rounded-full inline-block"></span>
+      <span x-text="connected ? 'Connected' : 'Reconnecting…'"
+            :class="connected ? 'text-green-400' : 'text-red-400'"></span>
+    </span>
+  </header>
+
+  <!-- ── Body ────────────────────────────────────────────────────────────── -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Canvas area -->
+    <div class="flex-1 flex flex-col overflow-hidden p-3 gap-2">
+
+      <!-- Level tabs -->
+      {% if dungeon.num_levels > 1 %}
+      <div class="flex gap-2 shrink-0">
+        {% for i in range(dungeon.num_levels) %}
+        <button @click="currentLevel = {{ i }}; render()"
+                :class="currentLevel === {{ i }}
+                  ? 'bg-dm-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'"
+                class="px-3 py-1 rounded-lg text-sm font-semibold transition-colors">
+          Level {{ i + 1 }}{% if i == 0 %} (entrance){% elif i == dungeon.num_levels - 1 %} (boss){% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Zoom controls -->
+      <div class="shrink-0 flex items-center gap-2">
+        <span class="text-xs text-slate-500">Zoom</span>
+        <button @click="zoomOut()"
+                class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700
+                       hover:bg-slate-600 text-white font-bold text-sm transition-colors"
+                title="Zoom out (Ctrl+scroll)">−</button>
+        <button @click="zoomReset()"
+                class="px-2 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-white
+                       text-xs font-mono transition-colors min-w-12 text-center"
+                title="Reset zoom"
+                x-text="zoomPct"></button>
+        <button @click="zoomIn()"
+                class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700
+                       hover:bg-slate-600 text-white font-bold text-sm transition-colors"
+                title="Zoom in (Ctrl+scroll)">+</button>
+        <span class="text-xs text-slate-600 ml-1">Ctrl+scroll to zoom · Pinch on touch</span>
+      </div>
+
+      <!-- Canvas -->
+      <div x-ref="wrap"
+           class="flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-700"
+           :class="placing ? 'cursor-crosshair' : 'cursor-default'">
+        <canvas x-ref="canvas"
+                @pointerdown="onPointerDown($event)"
+                @pointermove="onPointerMove($event)"
+                @pointerup="onPointerUp($event)"
+                @pointerleave="onPointerLeave()"
+                @wheel="onWheel($event)"
+                @touchstart.passive="onTouchStart($event)"
+                @touchmove.prevent="onTouchMove($event)"
+                @touchend.passive="onTouchEnd($event)"
+                class="block touch-none">
+        </canvas>
+      </div>
+
+      <!-- Hover info -->
+      <div class="shrink-0 h-5 text-xs text-slate-400 flex items-center gap-1">
+        <template x-if="placing">
+          <span class="text-yellow-400 font-semibold">
+            Click a floor tile to place monster —
+            <button @click="cancelPlacing()" class="underline hover:text-yellow-300">Cancel</button>
+          </span>
+        </template>
+        <template x-if="!placing && hoveredToken">
+          <span>
+            <span class="inline-block w-2 h-2 rounded-full mr-1"
+                  :style="`background:${hoveredToken?.color}`"></span>
+            <span class="font-semibold text-white" x-text="hoveredToken?.name"></span>
+            <span class="text-slate-500" x-text="`(${hoveredToken?.type})`"></span>
+            <span class="text-slate-600 ml-1">·</span>
+            (<span x-text="hoveredToken?.x"></span>,<span x-text="hoveredToken?.y"></span>)
+          </span>
+        </template>
+        <template x-if="!placing && !hoveredToken && hoveredSquare">
+          <span>
+            (<span x-text="hoveredSquare?.x"></span>, <span x-text="hoveredSquare?.y"></span>)
+            — <span x-text="tileName" class="font-semibold text-slate-300"></span>
+          </span>
+        </template>
+        <template x-if="!placing && !hoveredToken && !hoveredSquare">
+          <span class="text-slate-600">Tap/click token to select · tap floor to move · tap doors to toggle</span>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── DM Sidebar ─────────────────────────────────────────────────────── -->
+    <aside class="w-64 bg-slate-800 border-l border-slate-700 flex flex-col overflow-hidden shrink-0">
+
+      <!-- Session code -->
+      <div class="p-4 border-b border-slate-700">
+        <p class="text-xs text-slate-400 uppercase tracking-wider mb-1">Session Code</p>
+        <div class="flex items-center gap-2">
+          <span class="text-3xl font-mono font-bold text-dm-300 tracking-widest">{{ session.code }}</span>
+        </div>
+        <button @click="copyJoinLink()"
+                class="mt-2 w-full text-xs bg-slate-700 hover:bg-slate-600 text-slate-200
+                       px-3 py-1.5 rounded-lg transition-colors font-semibold">
+          Copy Join Link
+        </button>
+        <p class="text-xs text-slate-500 mt-1">Players go to <strong>/join</strong> and enter this code</p>
+      </div>
+
+      <!-- Players -->
+      <div class="p-4 border-b border-slate-700 overflow-y-auto flex-1">
+        <p class="text-xs text-slate-400 uppercase tracking-wider mb-2">Players</p>
+
+        <template x-if="onlinePlayers.length === 0">
+          <p class="text-xs text-slate-500 italic">No players yet — share the code!</p>
+        </template>
+
+        <template x-for="c in onlinePlayers" :key="c.id">
+          <div class="flex items-center gap-2 mb-2">
+            <span :class="c.online ? 'bg-green-500' : 'bg-slate-600'"
+                  class="w-2 h-2 rounded-full shrink-0 mt-0.5"></span>
+            <!-- Token color swatch -->
+            <span class="w-4 h-4 rounded-full shrink-0 border border-white/20"
+                  :style="`background:${tokens.find(t=>t.id===c.id)?.color ?? '#888'}`"></span>
+            <span class="text-sm font-medium flex-1 truncate" x-text="c.name"></span>
+            <span :class="c.online ? 'text-green-400' : 'text-slate-500'"
+                  class="text-xs" x-text="c.online ? 'Online' : 'Away'"></span>
+          </div>
+        </template>
+
+        <!-- Token list for removal -->
+        <template x-if="tokens.length > 0">
+          <div class="mt-3">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-2">All Tokens</p>
+            <template x-for="tok in tokens.filter(t => t.level === currentLevel)" :key="tok.id">
+              <div class="flex items-center gap-2 mb-1.5 group">
+                <span class="w-3 h-3 rounded-full shrink-0" :style="`background:${tok.color}`"></span>
+                <span class="text-xs flex-1 truncate" x-text="`${tok.name} (${tok.type})`"></span>
+                <template x-if="tok.type === 'monster'">
+                  <button @click="removeToken(tok.id)"
+                          class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100
+                                 transition-opacity text-xs px-1">✕</button>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- Map Legend -->
+      <div class="p-4 border-t border-slate-700 shrink-0" x-data="{ open: false }">
+        <button @click="open = !open"
+                class="flex items-center justify-between w-full text-xs text-slate-400
+                       uppercase tracking-wider hover:text-slate-200 transition-colors">
+          <span>Map Legend</span>
+          <svg class="w-3 h-3 transition-transform" :class="open ? 'rotate-180':''"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div x-show="open" x-cloak class="mt-2 space-y-1">
+          {% for color, icon, label, desc in [
+            ('#2a7a3a', '⊙', 'Entrance', 'Start of the dungeon'),
+            ('#d4a017', '▲', 'Stairs Up', 'Climb to previous level'),
+            ('#c07010', '▼', 'Stairs Down', 'Descend to next level'),
+            ('#b03030', '⚔', 'Spawn Point', 'Enemy spawn location'),
+            ('#c8a020', '★', 'Treasure', 'Loot or chest'),
+            ('#6b4c1e', '▬', 'Door', 'Tap to open/close'),
+          ] %}
+          <div class="flex items-center gap-2 text-xs"
+               title="{{ desc }}">
+            <span class="w-5 text-center font-bold shrink-0"
+                  style="color:{{ color }}">{{ icon }}</span>
+            <span class="text-slate-300 font-medium">{{ label }}</span>
+            <span class="text-slate-600 truncate">{{ desc }}</span>
+          </div>
+          {% endfor %}
+          <div class="flex items-center gap-2 text-xs mt-1 pt-1 border-t border-slate-700">
+            <span class="w-5 h-5 rounded-full shrink-0 border-2 border-white"
+                  style="background:#3b82f6"></span>
+            <span class="text-slate-300 font-medium">Player</span>
+            <span class="text-slate-600">Letter = first initial</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="w-5 h-5 rounded-full shrink-0 border-2 border-white/40"
+                  style="background:#dc2626"></span>
+            <span class="text-slate-300 font-medium">Monster</span>
+            <span class="text-slate-600">Placed by DM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Place Monster -->
+      <div class="p-4 border-t border-slate-700 shrink-0">
+        <p class="text-xs text-slate-400 uppercase tracking-wider mb-2">Place Monster</p>
+        <input type="text" x-model="monsterName" placeholder="Monster name"
+               maxlength="12"
+               class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5
+                      text-sm text-white placeholder-slate-500 mb-2
+                      focus:outline-none focus:ring-1 focus:ring-dm-500">
+        <div class="flex gap-1.5 mb-2 flex-wrap">
+          {% for c in ['#dc2626','#ea580c','#9333ea','#0ea5e9','#10b981','#f59e0b'] %}
+          <button @click="monsterColor = '{{ c }}'"
+                  :class="monsterColor === '{{ c }}' ? 'ring-2 ring-white scale-110' : ''"
+                  style="background: {{ c }}"
+                  class="w-6 h-6 rounded-full transition-transform"></button>
+          {% endfor %}
+        </div>
+        <button @click="startPlacing()"
+                :disabled="placing"
+                class="w-full bg-dm-600 hover:bg-dm-700 disabled:opacity-50
+                       text-white text-sm font-bold py-2 rounded-lg transition-colors">
+          <span x-text="placing ? 'Click the map…' : 'Place on Map'"></span>
+        </button>
+      </div>
+
+    </aside>
+  </div>
+
+</body>
+</html>

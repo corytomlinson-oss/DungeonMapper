@@ -1,323 +1,232 @@
 # Dungeon Mapper
 
-A self-hosted, browser-based dungeon generator and live play tool for D&D 5e. Part of the HomeHub suite on Raspberry Pi.
+A self-hosted, browser-based dungeon generator and live-play VTT for D&D 5e. Part of the HomeHub suite on Raspberry Pi.
 
 Designed to grow across four phases — from a standalone procedural dungeon generator to a full multiplayer virtual tabletop with fog of war and integrated random encounters.
+
+**Live at:** `http://webpi.local:8085`
+
+---
+
+## Current Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1 — Generator | ✅ Complete | Generate, render, save/load dungeons |
+| Phase 2 — Live Play | ✅ Complete | WebSocket multiplayer, tokens, DM controls |
+| Phase 3 — Fog of War | Planned | |
+| Phase 4 — Encounter Integration | Planned | |
+
+---
+
+## How to Use
+
+### Starting a Session (DM)
+
+1. Go to `http://webpi.local:8085`
+2. Choose dungeon type, size, and levels → click **Generate**
+3. When satisfied with the map, click **Start Live Session**
+4. You land on the DM view — note the 6-character session code at the top of the sidebar
+5. Share the code with players: `http://webpi.local:8085/join`
+
+### Joining as a Player
+
+1. Go to `http://webpi.local:8085/join`
+2. Enter the session code, your name, and pick a token color
+3. You appear on the map at the dungeon entrance
+
+### Moving Tokens
+
+- **Tap/click** your token → it highlights with a yellow ring (selected)
+- **Tap/click** any floor tile → token moves there
+- **Drag** the token directly to a tile — also works
+- **Pinch** on iPad to zoom in/out; use **+/−** buttons or **Ctrl+scroll** on desktop
+
+### DM Controls (Sidebar)
+
+| Control | What it does |
+|---------|-------------|
+| Copy Join Link | Copies the player join URL to clipboard |
+| Map Legend | Expandable key showing all map icons |
+| All Tokens | Lists tokens on current level; click ✕ to remove monsters |
+| Place Monster | Enter a name, pick color, click **Place on Map**, then click a floor tile |
+
+### Map Icon Key
+
+| Icon | Color | Meaning |
+|------|-------|---------|
+| ⊙ | Green | Entrance — party starts here |
+| ▲ | Gold | Stairs Up — climb to previous level |
+| ▼ | Orange | Stairs Down — descend to next level |
+| ⚔ | Red | Spawn Point — enemy encounter location |
+| ★ | Yellow | Treasure — loot or chest |
+| ▬ | Brown | Door — tap/click to open or close |
+| ● | Custom | Player token — initial letter of player name |
+| ● | Custom | Monster token — placed by DM |
+
+Hover over any tile or token to see its name in the status bar.
+
+---
+
+## TV / Table Display
+
+The app is designed to run on a 55" TV installed in a table top. At default zoom the map scales to the browser width; zoom in for larger token display. The DM controls the map from a laptop while the TV shows the player view full-screen.
+
+- Use **+** zoom button (or pinch/Ctrl+scroll) to scale up for the TV
+- The canvas grows beyond the viewport and becomes scrollable — use a keyboard or mouse to pan on the TV browser
+- For mini-figure play, zoom out to see the whole map and use the grid as position reference (each □ = 5 ft)
+
+---
+
+## Planned: Session Save/Resume (Phase 2.5)
+
+Currently session state (token positions, open doors) lives in memory and is lost if the server restarts. Planned feature: persist session state to SQLite so a game can be paused and resumed.
 
 ---
 
 ## Planned Features
 
-### Phase 1 — Dungeon Generator (Offline Tool)
-- Procedural dungeon/cave/crypt generation from configurable parameters
-- Area type presets: Dungeon, Cave, Crypt, Sewer, Forest Ruins
-- Configurable size (small / medium / large / epic) and number of levels
-- Automatic room layout, corridor connections, doors
-- Special room placement: entrance, boss room, treasure room, dead ends
-- Staircases connecting levels (up/down, positioned logically)
-- Mob spawn point placement scaled to room size and dungeon level
-- Printable / exportable map view
-- Save and reload dungeons
-
-### Phase 2 — Live Play (Single Session, Shared Screen)
-- Load a saved dungeon into a live session
-- Player tokens: name, color, icon — each player controls their own token
-- DM places/removes tokens and monsters
-- **Drag-and-drop** token movement on the canvas (pointer events, works on touch and mouse)
-- Real-time sync via WebSockets — all connected browsers update instantly
-- DM view: full map always visible
-- No login required — session join via 6-character code shared by the DM
-
 ### Phase 3 — Fog of War
 - Player view: only tiles the player has visited or can currently see are visible
-- Line-of-sight engine: field-of-view per token using raycasting
+- Line-of-sight engine: field-of-view per token using recursive shadowcasting
 - Fog persists per player across the session (visited tiles stay revealed)
 - DM controls: reveal a room, reveal entire level, reset fog
 - DM view always shows full map with a fog overlay showing what players can see
 - Configurable sight radius per token (torchlight vs darkvision)
 
 ### Phase 4 — Encounter Integration
-- DM clicks a mob spawn point → DM panel shows an "Import Encounter" button (never auto-triggered)
-- Calls the Encounter Generator HTTP API (port 8084) with party level + CR range → returns encounter JSON
+- DM clicks a mob spawn point → "Import Encounter" button appears in DM panel
+- Calls the Encounter Generator HTTP API (port 8084) with party level + CR range
 - Imported encounter assigned to the room; monsters appear as tokens on the map
 - Track encounter state per room: Not Started / In Progress / Cleared
-- Encounter rooms highlighted on map by state (green = cleared, red = active, gray = pending)
-- XP tally for the session shown in DM panel
+- Rooms highlighted on map by encounter state
+- Session XP tally in DM panel
 
 ---
 
-## Technical Design
+## Technical Stack
 
-### Stack
+| Layer | Tech |
+|-------|------|
+| Backend | FastAPI |
+| Real-time | FastAPI WebSockets + `websockets>=12.0` |
+| Templates | Jinja2 |
+| Map Rendering | HTML5 Canvas 2D API |
+| UI | Alpine.js |
+| Styling | Tailwind CSS CDN |
+| Database | SQLite + SQLAlchemy |
+| Server | Uvicorn on Raspberry Pi (systemd) |
 
-| Layer | Tech | Notes |
-|-------|------|-------|
-| Backend | FastAPI | Same as Encounter Generator |
-| Real-time | FastAPI WebSockets | Required for Phase 2+ multiplayer sync |
-| Templates | Jinja2 | Initial page load only in Phase 2+ |
-| Map Rendering | HTML5 Canvas | Tile-based; handles fog, tokens, LOS efficiently |
-| UI Controls | Alpine.js | Panels, modals, form state |
-| Styling | Tailwind CSS CDN | Consistent with rest of HomeHub |
-| Database | SQLite + SQLAlchemy | Dungeon storage and session state |
-| Server | Uvicorn | systemd service on Pi |
+### WebSocket Protocol
 
-**Why Canvas over SVG or CSS Grid?**
-Canvas handles fog of war (per-pixel alpha masking), raycasting line-of-sight, and smooth token animation at 60fps. SVG struggles with large tile grids and fog masking. CSS Grid can't do LOS at all.
+All messages are JSON.
 
-**Why WebSockets over HTMX polling?**
-Token movement and fog updates need sub-100ms latency for a good play experience. HTMX long-polling would work for fog reveal (DM action → all players update) but not for smooth token drag-and-drop. WebSockets handle both cleanly.
+**Client → Server:**
+```json
+{ "action": "move_token",   "token_id": "player_1", "x": 12, "y": 7, "level": 0 }
+{ "action": "place_token",  "name": "Goblin", "color": "#dc2626", "x": 15, "y": 9, "level": 0 }
+{ "action": "remove_token", "token_id": "monster_abc12345" }
+{ "action": "toggle_door",  "x": 10, "y": 6 }
+{ "action": "ping" }
+```
 
-**Touch + mouse support (iPad & laptop)**
-Canvas drag-and-drop uses the [Pointer Events API](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events) (`pointerdown`, `pointermove`, `pointerup`) which works identically for touch, stylus, and mouse without separate event handlers. Target devices: iPad (Chrome/Safari) and laptop (Windows + Mac).
-
-**Authentication**
-Session code only for now (no accounts). The `Player` model and session lookup are isolated behind a thin `auth.py` module so that a proper login system (username/password or OAuth) can be dropped in later without touching the WebSocket handlers or canvas code.
-
-### Port
-`8085` (adjacent to Encounter Generator at `8084`)
+**Server → Client broadcasts:**
+```json
+{ "event": "state_sync",         "tokens": [...], "open_doors": {...}, "active_clients": [...] }
+{ "event": "token_moved",        "token_id": "player_1", "x": 12, "y": 7, "level": 0 }
+{ "event": "token_added",        "token": { "id": "...", "name": "...", "color": "...", ... } }
+{ "event": "token_removed",      "token_id": "monster_abc12345" }
+{ "event": "door_toggled",       "x": 10, "y": 6, "open": true }
+{ "event": "client_connected",   "client_id": "player_1", "name": "Cory", "role": "player" }
+{ "event": "client_disconnected","client_id": "player_1" }
+```
 
 ---
 
-## Dungeon Generation Algorithm
+## Dungeon Generation
 
 ### Area Type → Algorithm
 
 | Area Type | Algorithm | Character |
 |-----------|-----------|-----------|
-| Dungeon | BSP Tree (Binary Space Partitioning) | Rectangular rooms, straight corridors |
-| Cave | Cellular Automata | Organic, irregular, open caverns |
-| Crypt | BSP Tree + symmetry pass | Symmetrical wings, long halls |
-| Sewer | Drunk Walk + grid snap | Winding tunnels, occasional chambers |
-| Forest Ruins | BSP Tree + erosion pass | Rooms with crumbling irregular edges |
+| Dungeon | BSP Tree | Rectangular rooms, straight corridors |
+| Cave | Cellular Automata | Organic, irregular caverns |
+| Crypt | BSP Tree + symmetry | Symmetrical wings, long halls |
+| Sewer | Drunk Walk + grid snap | Winding tunnels |
+| Forest Ruins | BSP Tree + erosion | Crumbling irregular edges |
 
-### BSP Tree (primary algorithm)
-1. Start with the full map as a single rectangle
-2. Recursively split into two sub-rectangles (alternate horizontal/vertical cuts)
-3. Place a room inside each leaf node with random padding
-4. Connect sibling rooms with an L-shaped corridor
-5. Walk back up the tree connecting all rooms via corridors
+### Size Presets
 
-### Tile Types
-
-| Tile | Value | Description |
-|------|-------|-------------|
-| Wall | 0 | Impassable, blocks LOS |
-| Floor | 1 | Passable |
-| Door | 2 | Passable, blocks LOS until opened |
-| Stairs Up | 3 | Transition to level above |
-| Stairs Down | 4 | Transition to level below |
-| Spawn Point | 5 | Mob encounter marker |
-| Treasure | 6 | Treasure room marker |
-| Entrance | 7 | Party entry point |
-
-### Size Presets (tiles)
-
-| Size | Grid | Rooms (approx) |
-|------|------|----------------|
+| Size | Grid | Approx Rooms |
+|------|------|--------------|
 | Small | 40×30 | 6–10 |
 | Medium | 70×50 | 12–20 |
 | Large | 100×70 | 20–35 |
 | Epic | 150×100 | 35–60 |
 
-### Multi-Level
-- Each level is an independent grid stored as a JSON 2D array
-- Stairs Down on level N paired with Stairs Up on level N+1 (positions matched)
-- Dungeon difficulty scales with depth: spawn point CR range increases per level
+Each square = 5 ft. Dungeons are saved as seed + parameters and regenerated deterministically — the DB stores no tile data.
 
 ---
 
-## Data Models
-
-### Dungeon
-```
-id            int PK
-name          str
-area_type     str          ("dungeon", "cave", "crypt", "sewer", "ruins")
-width         int
-height        int
-num_levels    int
-seed          int          (RNG seed for reproducibility)
-levels_json   text         JSON array of 2D tile grids, one per level
-rooms_json    text         JSON array of room metadata (position, type, level)
-created_at    datetime
-```
-
-### DungeonSession (Phase 2)
-```
-id            int PK
-dungeon_id    int FK
-session_code  str          (6-char join code, e.g. "XK7R2M")
-dm_token      str          (secret token for DM browser)
-state_json    text         JSON: token positions, door states, encounter states
-fog_json      text         JSON: per-player revealed tile sets, keyed by player_id
-created_at    datetime
-```
-
-### Player (Phase 2)
-```
-id            int PK
-session_id    int FK
-name          str
-color         str          (hex, e.g. "#3b82f6")
-icon          str          ("warrior", "mage", "rogue", "cleric", "ranger")
-x             int
-y             int
-level         int          (dungeon level the player is currently on)
-```
-
-### RoomEncounter (Phase 4)
-```
-id            int PK
-session_id    int FK
-room_index    int
-encounter_id  int          (FK to Encounter Generator DB, if integrated)
-status        str          ("pending", "active", "cleared")
-monsters_json text         imported encounter data snapshot
-```
-
----
-
-## WebSocket Protocol (Phase 2)
-
-All messages are JSON. Client → Server actions:
-
-```json
-{ "action": "drag_start",  "player_id": 3 }
-{ "action": "drag_end",    "player_id": 3, "x": 12, "y": 7 }
-{ "action": "open_door",   "x": 10, "y": 6 }
-{ "action": "reveal_room", "room_index": 4 }             // DM only
-{ "action": "place_token", "type": "monster", "x": 15, "y": 9 } // DM only
-{ "action": "import_encounter", "room_index": 2, "encounter_json": {...} } // DM only
-{ "action": "ping" }
-```
-
-Server → All clients broadcast:
-
-```json
-{ "event": "state_update", "state": { ...full session state... } }
-{ "event": "fog_update",   "player_id": 3, "revealed": [[x,y], ...] }
-{ "event": "player_joined","player": { "id": 3, "name": "Cory", "color": "#3b82f6" } }
-```
-
----
-
-## Fog of War Design (Phase 3)
-
-### Field of View Algorithm
-Using **recursive shadowcasting** (Björn Bergström's algorithm) — the standard for tile-based roguelikes:
-- O(visible tiles) time complexity — fast enough for 60fps
-- Handles walls, pillars, and diagonal occlusion correctly
-- Sight radius configurable per token (default 6 tiles; darkvision extends to 12)
-
-### Fog Rendering (Canvas)
-1. Render the full dungeon tile grid to an offscreen canvas
-2. Create a fog layer: black fill over the entire map
-3. For each player token, compute their FOV and "cut out" visible tiles using `globalCompositeOperation = 'destination-out'`
-4. Previously-visited tiles rendered at 40% opacity (seen but not currently visible)
-5. Never-seen tiles stay fully black
-6. Composite the fog layer over the map canvas
-
-### DM Panel
-- Toggle between "DM View" (no fog) and "Player Preview" (see what players see)
-- Room-by-room reveal buttons in the sidebar
-- "Reveal All" and "Reset Fog" controls
-
----
-
-## Session Flow (Phase 2+)
-
-```
-DM opens app → Creates dungeon (or loads saved) → Starts session
-  → Gets session code (e.g. XK7R2M) + DM link
-  → Shares code with players
-
-Players open app → Enter session code + name + pick token color/icon
-  → Dropped into player view at dungeon entrance
-
-DM sees full map; players see fog-covered map with their token visible
-DM controls: reveal rooms, place monster tokens, import encounters (always manual — never auto-triggered)
-Players: drag token to move, tap doors to open/close
-```
-
----
-
-## Project Structure (planned)
+## Project Structure
 
 ```
 DungeonMapper/
 ├── app/
 │   ├── templates/
-│   │   ├── base.html
-│   │   ├── index.html          # Generator form
-│   │   ├── dungeon_view.html   # DM view (full map)
-│   │   ├── player_view.html    # Player view (fog of war)
+│   │   ├── base.html               # Nav + shared head (generator pages)
+│   │   ├── index.html              # Generator form + saved list
+│   │   ├── dm_view.html            # DM live session (standalone)
+│   │   ├── player_view.html        # Player live session (standalone)
+│   │   ├── player_join.html        # Join form
 │   │   └── partials/
-│   │       ├── dungeon_result.html
-│   │       └── session_panel.html
+│   │       ├── dungeon_result.html # Canvas + controls (HTMX swap)
+│   │       └── saved_list.html
 │   ├── static/
-│   │   └── canvas.js           # Map rendering + WebSocket client
+│   │   ├── canvas.js               # Generator map rendering (Alpine component)
+│   │   └── multiplayer.js          # Live-play rendering + WebSocket (Alpine component)
+│   ├── auth.py                     # Session code + token generation
 │   ├── database.py
-│   ├── dungeon_gen.py          # Procedural generation algorithms
-│   ├── fov.py                  # Field-of-view / shadowcasting
-│   ├── main.py                 # FastAPI routes + WebSocket handlers
-│   ├── models.py               # Dungeon, DungeonSession, Player, RoomEncounter
-│   └── session_manager.py      # In-memory WebSocket connection registry
-├── systemd/
-│   └── dungeon-mapper.service
+│   ├── dungeon_gen.py              # Procedural generation algorithms
+│   ├── main.py                     # FastAPI routes + WebSocket handlers
+│   ├── models.py                   # SavedDungeon, DungeonSession, Player
+│   └── session_manager.py          # In-memory WebSocket connection registry
 ├── requirements.txt
-└── README.md                   # This file
+└── README.md
 ```
 
 ---
 
-## Implementation Phases — Checklist
+## Phase 2 Implementation Notes
 
-### Phase 1 — Generator ✅ Complete
-- [x] BSP tree dungeon generation (dungeon, crypt, sewer, ruins)
-- [x] Cellular automata cave generation with largest-region connectivity pass
-- [x] Multi-level support (1–5 levels) with paired stair tiles
-- [x] Special room placement: entrance, boss room, treasure, spawn points
-- [x] 5-ft square grid lines on all floor tiles (□ = 5 ft)
-- [x] Scale bar drawn on canvas (shows 0–25 ft reference)
-- [x] Hover tooltip shows tile type and grid coordinates
-- [x] Canvas auto-scales tile size to fit container width (iPad + laptop)
-- [x] Save / load dungeons — stores seed + params only, regenerates deterministically
-- [x] Generator UI: area type, size, levels, optional seed
-- [x] Saved dungeon list with delete
-- [x] systemd service on Pi at port 8085
+### Token Interaction Model
+Tokens use a **click-to-select / click-to-move** model (same as Roll20):
+1. Tap/click a token you control → yellow selection ring appears
+2. Tap/click any floor tile → token moves there
+3. Drag directly to a tile also works in one gesture
 
-### Phase 2 — Live Play
-- [ ] WebSocket server with session management
-- [ ] Session creation and join-code flow
-- [ ] DM and player token rendering on canvas
-- [ ] Token drag-and-drop (Pointer Events API — touch + mouse unified)
-- [ ] Door open/close state sync
-- [ ] DM-only controls panel
-- [ ] `auth.py` session-code layer (designed to be swappable for login later)
+This model works identically on iPad touch and desktop mouse, which was the key design requirement.
 
-### Phase 3 — Fog of War
-- [ ] Recursive shadowcasting FOV
-- [ ] Canvas fog layer with composite rendering
-- [ ] Per-player revealed tile persistence
-- [ ] DM reveal controls (room, level, all)
-- [ ] Sight radius by token type (torch / darkvision)
+### Player Token Sync
+When a player's WebSocket connects, their token is added to server memory and:
+- The connecting player receives a full `state_sync` (all tokens + doors)
+- All other clients (DM) receive a `token_added` event so the token appears immediately
 
-### Phase 4 — Encounter Integration
-- [ ] HTTP API endpoint on Encounter Generator (port 8084) for external calls
-- [ ] DM panel "Import Encounter" button per spawn-point room
-- [ ] Call Encounter Generator API with party level + CR → receive encounter JSON
-- [ ] Assign encounter to room; place monster tokens on map
-- [ ] Encounter state tracking per room (pending / active / cleared)
-- [ ] Session XP tally
+### Zoom
+The base tile size is calculated to fit the dungeon width in the container. The zoom multiplier (0.3×–5×) scales tiles up or down. At zoom > 1, the canvas overflows its container and becomes scrollable — `overflow-auto` on the wrapper handles this.
+
+### Session Recovery
+If the server restarts, the in-memory `ActiveSession` is lost. The WebSocket endpoint regenerates the dungeon from DB parameters when a client reconnects to a session not in memory. Token positions are reset; this will be addressed in the session save/resume feature.
 
 ---
 
-## Design Decisions Log
+## Design Decisions
 
-| # | Question | Decision | Notes |
-|---|----------|----------|-------|
-| 1 | Token movement style | **Drag-and-drop** | Pointer Events API (touch + mouse unified) |
-| 2 | Authentication | **Session code only** for now | `auth.py` isolated so login can be added later without touching WS handlers |
-| 3 | Encounter trigger | **Always manual** (DM clicks Import) | Never auto-triggered when players enter a room |
-| 4 | Target devices | **iPad + laptop** (Windows & Mac) | No phone optimization needed; Pointer Events covers iPad touch |
-| 5 | Encounter Generator integration | **HTTP API call** to port 8084 | Keeps apps independent; Encounter Generator will need a JSON endpoint added |
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Token movement | Click-to-select + click-to-move (also supports drag) |
+| 2 | Zoom | Tile-size multiplier (0.3×–5×) + scrollable container |
+| 3 | Authentication | Session code + DM token only (auth.py isolated for future login) |
+| 4 | Encounter trigger | Always manual — DM clicks Import, never auto |
+| 5 | Target devices | iPad + laptop; TV display at 5× zoom via player view |
+| 6 | Encounter integration | HTTP API call to port 8084 (apps stay independent) |

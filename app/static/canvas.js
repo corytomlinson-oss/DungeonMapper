@@ -18,25 +18,26 @@ const SYMBOLS = { 3:'▲', 4:'▼', 5:'⚔', 6:'★', 7:'⊙' };
 // Grid line color drawn on floor tiles to show 5-ft squares
 const GRID_LINE = 'rgba(90,70,40,0.25)';
 
-function dungeonMap(data) {
+function dungeonMap() {
   return {
-    data,
+    data: null,
     currentLevel: 0,
     hoveredSquare: null,
 
     init() {
+      // Read dungeon JSON from the data-dungeon attribute (HTML-escaped, safe to embed)
+      this.data = JSON.parse(this.$el.dataset.dungeon);
       this.$watch('currentLevel', () => this.render());
       this.$nextTick(() => {
         const ro = new ResizeObserver(() => this.render());
         ro.observe(this.$refs.wrap);
-        // Small delay so the browser finishes layout after HTMX swap
         setTimeout(() => this.render(), 50);
       });
     },
 
     tileSize() {
       const wrap = this.$refs.wrap;
-      if (!wrap) return 12;
+      if (!wrap || !this.data) return 12;
       const containerW = wrap.clientWidth - 2; // subtract 1px border each side
       const ts = Math.floor(containerW / this.data.width);
       return Math.max(4, Math.min(20, ts));
@@ -44,7 +45,7 @@ function dungeonMap(data) {
 
     render() {
       const canvas = this.$refs.canvas;
-      if (!canvas) return;
+      if (!canvas || !this.data) return;
       const ts = this.tileSize();
       const W = this.data.width;
       const H = this.data.height;
@@ -156,6 +157,7 @@ function dungeonMap(data) {
     },
 
     onCanvasMove(e) {
+      if (!this.data) return;
       const [x, y] = this.pointerTile(e);
       const grid = this.data.levels[this.currentLevel].grid;
       const H = this.data.height, W = this.data.width;

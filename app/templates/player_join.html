@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Join Session — Dungeon Mapper{% endblock %}
+{% block content %}
+
+<div class="max-w-sm mx-auto mt-10">
+  <div class="bg-white rounded-2xl shadow-lg p-8">
+    <h1 class="text-2xl font-bold text-slate-800 mb-1">Join a Session</h1>
+    <p class="text-sm text-slate-500 mb-6">Enter the session code your DM shared with you.</p>
+
+    {% if error is defined and error %}
+    <div class="mb-4 bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/join" class="space-y-5" x-data="{ color: '#3b82f6' }">
+
+      <!-- Code -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Session Code</label>
+        <input type="text" name="code" required
+               value="{{ prefill_code }}"
+               maxlength="6" placeholder="e.g. ABC123"
+               class="w-full uppercase font-mono text-center text-xl tracking-widest
+                      rounded-xl border-2 border-slate-300 px-4 py-3
+                      focus:outline-none focus:ring-2 focus:ring-dm-500 focus:border-dm-500"
+               oninput="this.value = this.value.toUpperCase()">
+      </div>
+
+      <!-- Name -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Your Name</label>
+        <input type="text" name="name" required
+               maxlength="20" placeholder="e.g. Aragorn"
+               class="w-full rounded-xl border-2 border-slate-300 px-4 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-dm-500 focus:border-dm-500">
+      </div>
+
+      <!-- Color -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Token Color</label>
+        <input type="hidden" name="color" :value="color">
+        <div class="flex gap-3 flex-wrap">
+          {% for hex in ['#3b82f6','#22c55e','#a855f7','#f97316','#ec4899','#ef4444','#eab308','#14b8a6'] %}
+          <button type="button"
+                  @click="color = '{{ hex }}'"
+                  :class="color === '{{ hex }}' ? 'ring-2 ring-offset-2 ring-slate-800 scale-110' : ''"
+                  style="background: {{ hex }}"
+                  class="w-8 h-8 rounded-full transition-all shadow-sm"></button>
+          {% endfor %}
+        </div>
+        <p class="text-xs text-slate-400 mt-2">This is your token color on the map.</p>
+      </div>
+
+      <button type="submit"
+              class="w-full bg-dm-600 hover:bg-dm-700 text-white font-bold
+                     py-3 rounded-xl transition-colors shadow">
+        Enter the Dungeon
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
