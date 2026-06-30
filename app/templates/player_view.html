@@ -16,8 +16,12 @@
     }
   </script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="/static/multiplayer.js?v=3"></script>
-  <style>[x-cloak]{display:none!important}</style>
+  <script src="/static/multiplayer.js?v=5"></script>
+  <style>
+    [x-cloak]{display:none!important}
+    .map-wrap::-webkit-scrollbar { display: none; }
+    .map-wrap { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
 
 <body class="bg-slate-900 text-white h-screen flex flex-col overflow-hidden"
@@ -74,11 +78,12 @@
       <button @click="zoomIn()"
               class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700
                      hover:bg-slate-600 text-white font-bold text-sm transition-colors">+</button>
-      <span class="text-xs text-slate-700 ml-1 hidden sm:inline">Pinch to zoom</span>
+      <span class="text-xs text-slate-700 ml-1 hidden sm:inline">Scroll to zoom · Pinch on touch · Drag to pan</span>
     </div>
 
     <div x-ref="wrap"
-         class="flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-700 cursor-default">
+         class="map-wrap flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-700"
+         :class="panning ? 'cursor-grabbing' : 'cursor-grab'">
       <canvas x-ref="canvas"
               @pointerdown="onPointerDown($event)"
               @pointermove="onPointerMove($event)"

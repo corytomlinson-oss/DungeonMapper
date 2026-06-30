@@ -19,8 +19,12 @@
     }
   </script>
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="/static/multiplayer.js?v=3"></script>
-  <style>[x-cloak]{display:none!important}</style>
+  <script src="/static/multiplayer.js?v=5"></script>
+  <style>
+    [x-cloak]{display:none!important}
+    .map-wrap::-webkit-scrollbar { display: none; }
+    .map-wrap { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
 </head>
 
 <body class="bg-slate-900 text-white h-screen flex flex-col overflow-hidden"
@@ -86,13 +90,13 @@
                 class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700
                        hover:bg-slate-600 text-white font-bold text-sm transition-colors"
                 title="Zoom in (Ctrl+scroll)">+</button>
-        <span class="text-xs text-slate-600 ml-1">Ctrl+scroll to zoom · Pinch on touch</span>
+        <span class="text-xs text-slate-600 ml-1">Scroll to zoom · Pinch on touch · Drag to pan</span>
       </div>
 
       <!-- Canvas -->
       <div x-ref="wrap"
-           class="flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-700"
-           :class="placing ? 'cursor-crosshair' : 'cursor-default'">
+           class="map-wrap flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-700"
+           :class="panning ? 'cursor-grabbing' : (placing ? 'cursor-crosshair' : 'cursor-grab')">
         <canvas x-ref="canvas"
                 @pointerdown="onPointerDown($event)"
                 @pointermove="onPointerMove($event)"
@@ -146,9 +150,12 @@
           <span class="text-3xl font-mono font-bold text-dm-300 tracking-widest">{{ session.code }}</span>
         </div>
         <button @click="copyJoinLink()"
-                class="mt-2 w-full text-xs bg-slate-700 hover:bg-slate-600 text-slate-200
-                       px-3 py-1.5 rounded-lg transition-colors font-semibold">
-          Copy Join Link
+                class="mt-2 w-full text-xs px-3 py-1.5 rounded-lg transition-colors
+                       font-semibold"
+                :class="joinLinkCopied
+                  ? 'bg-green-700 text-green-100'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-200'">
+          <span x-text="joinLinkCopied ? '✓ Copied!' : 'Copy Join Link'"></span>
         </button>
         <p class="text-xs text-slate-500 mt-1">Players go to <strong>/join</strong> and enter this code</p>
       </div>
@@ -191,6 +198,48 @@
             </template>
           </div>
         </template>
+      </div>
+
+      <!-- Fog of War Controls -->
+      <div class="p-4 border-t border-slate-700 shrink-0">
+        <p class="text-xs text-slate-400 uppercase tracking-wider mb-3">Fog of War</p>
+
+        <!-- Fog toggle -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm text-slate-300">Fog Enabled</span>
+          <button @click="toggleFog()"
+                  class="relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none"
+                  :class="fogEnabled ? 'bg-blue-600' : 'bg-slate-600'">
+            <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow
+                         transition-transform duration-200"
+                  :class="fogEnabled ? 'translate-x-5' : 'translate-x-0'"></span>
+          </button>
+        </div>
+
+        <!-- Sight radius -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm text-slate-300">Sight Radius</span>
+          <div class="flex items-center gap-1">
+            <button @click="setSightRadius(sightRadius - 1)"
+                    class="w-6 h-6 flex items-center justify-center bg-slate-700
+                           hover:bg-slate-600 rounded text-white font-bold text-sm
+                           transition-colors">−</button>
+            <span class="w-8 text-center text-sm font-mono text-white"
+                  x-text="sightRadius + ' sq'"></span>
+            <button @click="setSightRadius(sightRadius + 1)"
+                    class="w-6 h-6 flex items-center justify-center bg-slate-700
+                           hover:bg-slate-600 rounded text-white font-bold text-sm
+                           transition-colors">+</button>
+          </div>
+        </div>
+        <p class="text-xs text-slate-600 mb-3">1 sq = 5 ft · default 6 sq (30 ft torch)</p>
+
+        <!-- Reveal All -->
+        <button @click="revealAll()"
+                class="w-full bg-amber-600 hover:bg-amber-700 text-white text-sm
+                       font-bold py-1.5 rounded-lg transition-colors">
+          Reveal All Fog
+        </button>
       </div>
 
       <!-- Map Legend -->

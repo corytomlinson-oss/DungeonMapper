@@ -305,6 +305,25 @@ async def websocket_endpoint(
                     "open": active.open_doors[key],
                 })
 
+            elif action == "toggle_fog" and role == "dm":
+                active.fog_enabled = bool(data.get("enabled", not active.fog_enabled))
+                await manager.broadcast(code, {
+                    "event": "fog_settings_changed",
+                    "fog_enabled": active.fog_enabled,
+                    "sight_radius": active.sight_radius,
+                })
+
+            elif action == "set_sight_radius" and role == "dm":
+                active.sight_radius = max(1, min(15, int(data.get("radius", 6))))
+                await manager.broadcast(code, {
+                    "event": "fog_settings_changed",
+                    "fog_enabled": active.fog_enabled,
+                    "sight_radius": active.sight_radius,
+                })
+
+            elif action == "reveal_all" and role == "dm":
+                await manager.broadcast(code, {"event": "fog_reveal_all"})
+
             elif action == "ping":
                 await ws.send_json({"event": "pong"})
 

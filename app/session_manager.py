@@ -13,6 +13,8 @@ class ActiveSession:
     open_doors: dict = field(default_factory=dict)      # "x,y" → True/False
     connections: list = field(default_factory=list)     # (WebSocket, role, client_id)
     active_clients: list = field(default_factory=list)  # {id, name, role, online}
+    fog_enabled: bool = True
+    sight_radius: int = 6
 
 
 class SessionManager:
@@ -97,6 +99,8 @@ class SessionManager:
             "tokens": session.tokens,
             "open_doors": session.open_doors,
             "active_clients": session.active_clients,
+            "fog_enabled": session.fog_enabled,
+            "sight_radius": session.sight_radius,
         }
 
     def find_entrance(self, dungeon: dict) -> tuple[int, int]:
